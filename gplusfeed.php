@@ -5,78 +5,132 @@
  */
 /*
 Plugin Name: Google Plus Feed Widget
-Plugin URI: http://wordpress.org/extend/plugins/gplusfeed
-Description: To feed your google+ stream into your blog in widget format
+Plugin URI: http://wordpress.org/extend/plugins/google-plus-feed-widget
+Description:  This plugin feeds your public google+ stream into a widget, quick and easy way to get your google plus posts into your wordpress blog.  Just enable it, drag the widget where you want, and add in your google id (the number in the address bar on your google profile).  This plugin only shows PUBLIC posts, until the API arrives there is very little else I can do.
 Author: Liz Quilty
-Version: 1.0
-Author URI: http://velofille.com
- */
-// http://justintadlock.com/archives/2009/05/26/the-complete-guide-to-creating-widgets-in-wordpress-28
-// http://azuliadesigns.com/wordpress-widgets-control-panels/
-// 
-//error_reporting(E_ALL);
-add_action("widgets_init", array('Gplusfeed', 'register'));
-register_activation_hook( __FILE__, array('Gplusfeed', 'activate'));
-register_deactivation_hook( __FILE__, array('Gplusfeed', 'deactivate'));
-class Gplusfeed {
-  function activate(){
-    $data = array( 'gplusid' => '114228869493885222559');
-    if ( ! get_option('gplusfeed')){
-      add_option('gplusfeed' , $data);
-    } else {
-      update_option('gplusfeed' , $data);
-    }
-  }
-  function deactivate(){
-    delete_option('gplusfeed');
-  }
-  function control(){
-    $data = get_option('gplusfeed');
-  ?>
-  <p><label>GPlus ID<input name="gplusfeed_gplusid"
-type="text" value="<?php echo $data['gplusid']; ?>" /></label></p>
+Version: 1.1
+Author URI: http://velofille.com/
+*/
 
-  <?php
-   if (isset($_POST['gplusfeed_gplusid'])){
-      $data['gplusid'] = attribute_escape($_POST['gplusfeed_gplusid']);
-      update_option('gplusfeed', $data);
-    }
-  }
-  function widget($args){
-    echo $args['before_widget'];
-    echo $args['before_title'] . 'Google+ Feed' . $args['after_title'];
+add_action( 'widgets_init', 'gplusfeed_load_widgets' );
 
-    include_once(ABSPATH.WPINC.'/feed.php');
-    $gplusid = get_option('gplusfeed');
-    // echo "<pre>";print_r($gplusid);echo "</pre>";
-    $RSSURL = "http://plus-one-feed-generator.appspot.com/".$gplusid['gplusid'];
-    $rss = fetch_feed("$RSSURL");
-    if (!is_wp_error( $rss ) ) : // Checks that the object is created correctly 
-    // Figure out how many total items there are, but limit it to 5. 
-    $maxitems = $rss->get_item_quantity(5); 
 
-    // Build an array of all the items, starting with element 0 (first element).
-    $rss_items = $rss->get_items(0, $maxitems); 
-    endif;
-  ?>
-  <ul>
-    <?php if ($maxitems == 0) echo '<li>No items.</li>';
-    else
-    // Loop through each feed item and display each item as a hyperlink.
-    foreach ( $rss_items as $item ) : ?>
-    <li>
-        <a href='<?php echo esc_url( $item->get_permalink() ); ?>'
-        title='<?php echo 'Posted '.$item->get_date('j F Y | g:i a'); ?>'>
-        <?php echo esc_html( $item->get_title() ); ?></a>
-    </li>
-    <?php endforeach; ?>
-</ul>
-<?
-  }
-
-function register(){
-    register_sidebar_widget('Google+ Feed', array('Gplusfeed', 'widget'));
-    register_widget_control('Google+ Feed', array('Gplusfeed', 'control'));
-  }
+function gplusfeed_load_widgets() {
+	register_widget( 'gplusfeed_Widget' );
 }
 
+class gplusfeed_Widget extends WP_Widget {
+
+	/**
+	 * Widget setup.
+	 */
+	function gplusfeed_Widget() {
+		/* Widget settings. */
+		$widget_ops = array( 'classname' => 'gplusfeed', 'description' => __('A Google+ Feed that displays a person\'s public posts in a widget.', 'gplusfeed') );
+
+		/* Widget control settings. */
+		$control_ops = array( 'width' => 300, 'height' => 350, 'id_base' => 'gplusfeed-widget' );
+
+		/* Create the widget. */
+		$this->WP_Widget( 'gplusfeed-widget', __('Google+ Feed', 'gplusfeed'), $widget_ops, $control_ops );
+	}
+
+	/**
+	 * How to display the widget on the screen.
+	 */
+	function widget( $args, $instance ) {
+		extract( $args );
+
+		/* Our variables from the widget settings. */
+		$title = apply_filters('widget_title', $instance['title'] );
+		$gplusid = $instance['gplusid'];
+		$rss_count = $instance['rss_count'];
+
+
+		/* Before widget (defined by themes). */
+		echo $before_widget;
+
+		/* Display the widget title if one was input (before and after defined by themes). */
+		if ( $title )
+			echo $before_title . $title . $after_title;
+
+		/* After widget (defined by themes). */
+		echo $after_widget;
+
+		include_once(ABSPATH.WPINC.'/feed.php');
+		$RSSURL = "http://plus-one-feed-generator.appspot.com/".$gplusid;
+		$rss = fetch_feed("$RSSURL");
+		if (!is_wp_error( $rss ) ) : // Checks that the object is created correctly 
+			// Figure out how many total items there are, but limit it to 5. 
+			$maxitems = $rss->get_item_quantity($rss_count); 
+	
+			// Build an array of all the items, starting with element 0 (first element).
+			$rss_items = $rss->get_items(0, $maxitems); 
+		endif;
+		?>
+		 <ul>
+		    <?php if ($maxitems == 0) echo '<li>No items.</li>';
+		    else
+		    // Loop through each feed item and display each item as a hyperlink.
+		    foreach ( $rss_items as $item ) : ?>
+		    <li>
+		        <a href='<?php echo esc_url( $item->get_permalink() ); ?>'
+		        title='<?php echo 'Posted '.$item->get_date('j F Y | g:i a'); ?>'>
+		        <?php echo esc_html( $item->get_title() ); ?></a>
+		    </li>
+		    <?php endforeach; ?>
+		</ul>
+		<?
+
+
+	}
+
+	/**
+	 * Update the widget settings.
+	 */
+	function update( $new_instance, $old_instance ) {
+		$instance = $old_instance;
+
+		/* Strip tags for title and name to remove HTML (important for text inputs). */
+		$instance['title'] = strip_tags( $new_instance['title'] );
+		$instance['gplusid'] = strip_tags( $new_instance['gplusid'] );
+		$instance['rss_count'] = $new_instance['rss_count'];
+
+
+		return $instance;
+	}
+
+	/**
+	 * Displays the widget settings controls on the widget panel.
+	 * Make use of the get_field_id() and get_field_name() function
+	 * when creating your form elements. This handles the confusing stuff.
+	 */
+	function form( $instance ) {
+
+		/* Set up some default widget settings. */
+		$defaults = array( 'title' => 'Google+ Feed', 'gplusid' => '114228869493885222559', 'rss_count' => '5' );
+		$instance = wp_parse_args( (array) $instance, $defaults ); ?>
+
+		<!-- Title -->
+		<p>
+			<label for="<?php echo $this->get_field_id( 'title' ); ?>"><?php _e('Title:', 'hybrid'); ?></label>
+			<input id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo $instance['title']; ?>" style="width:100%;" />
+		</p>
+
+		<!-- Google Plus ID -->
+		<p>
+			<label for="<?php echo $this->get_field_id( 'gplusid' ); ?>"><?php _e('Your Gooogle+ ID:', 'gplusfeed'); ?></label>
+			<input id="<?php echo $this->get_field_id( 'gplusid' ); ?>" name="<?php echo $this->get_field_name( 'gplusid' ); ?>" value="<?php echo $instance['gplusid']; ?>" style="width:100%;" />
+		</p>
+
+		<!-- RSS Count -->
+		<p>
+			<label for="<?php echo $this->get_field_id( 'rss_count' ); ?>"><?php _e('How many :', 'gplusfeed'); ?></label> 
+			<input id="<?php echo $this->get_field_id( 'rss_count' ); ?>" name="<?php echo $this->get_field_name( 'rss_count' ); ?>" value="<?php echo $instance['rss_count']; ?>" style="width:100%;" />
+		</p>
+
+	<?php
+	}
+}
+
+?>
