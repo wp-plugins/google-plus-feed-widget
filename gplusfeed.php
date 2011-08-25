@@ -1,18 +1,19 @@
 <?php
 /**
  * @package Google+ Feed Widget
- * @version 1.0
+ * @version 1.2
  */
 /*
 Plugin Name: Google Plus Feed Widget
 Plugin URI: http://wordpress.org/extend/plugins/google-plus-feed-widget
 Description:  This plugin feeds your public google+ stream into a widget, quick and easy way to get your google plus posts into your wordpress blog.  Just enable it, drag the widget where you want, and add in your google id (the number in the address bar on your google profile).  This plugin only shows PUBLIC posts, until the API arrives there is very little else I can do.
 Author: Liz Quilty
-Version: 1.1
+Version: 1.2
 Author URI: http://velofille.com/
 */
 
 add_action( 'widgets_init', 'gplusfeed_load_widgets' );
+add_filter( 'wp_feed_cache_transient_lifetime', create_function( '$a', 'return 900;' ) );
 
 
 function gplusfeed_load_widgets() {
